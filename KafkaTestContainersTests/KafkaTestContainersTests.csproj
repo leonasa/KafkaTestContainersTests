@@ -22,9 +22,4 @@
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
     </ItemGroup>
-
-    <ItemGroup>
-      <Compile Include="KafkaTestingContainerWithSchemaRegistry.c" />
-    </ItemGroup>
-
 </Project>

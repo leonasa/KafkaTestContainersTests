@@ -17,11 +17,10 @@ public class KafkaTestingContainerWithSchemaRegistry
     private const string ZookeeperPort = "2181";
 
     [Fact]
-    public async Task Test1()
+    public async Task CanIRun_Kafka_InAGenericTestcontainer_WithSchemaRegistry()
     {
         var networkName = Guid.NewGuid().ToString();
         var testcontainersNetworkBuilder = new TestcontainersNetworkBuilder()
-            // .WithDriver(NetworkDriver.Host)
             .WithName(networkName);
 
         var network = testcontainersNetworkBuilder.Build();
@@ -43,15 +42,15 @@ public class KafkaTestingContainerWithSchemaRegistry
 
         var kafka = new TestcontainersBuilder<TestcontainersContainer>()
             .WithImage("confluentinc/cp-kafka:latest")
-            .WithName("broker")
+            .WithName("broker2")
             .WithPortBinding(9092)
-            .WithNetworkAliases("broker")
+            .WithNetworkAliases("broker2")
             .WithNetwork(network)
             .WithEnvironment("KAFKA_BROKER_ID", 1.ToString(CultureInfo.InvariantCulture))
             .WithEnvironment("KAFKA_ZOOKEEPER_CONNECT", "zookeeper:2181")
             .WithEnvironment("KAFKA_LISTENER_SECURITY_PROTOCOL_MAP", "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT")
             .WithEnvironment("KAFKA_INTER_BROKER_LISTENER_NAME", "PLAINTEXT")
-            .WithEnvironment("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092")
+            .WithEnvironment("KAFKA_ADVERTISED_LISTENERS", "PLAINTEXT://broker2:29092,PLAINTEXT_HOST://localhost:9092")
             .WithEnvironment("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true")
             .WithEnvironment("KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR", 1.ToString(CultureInfo.InvariantCulture))
             .WithEnvironment("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", 1.ToString(CultureInfo.InvariantCulture))
@@ -63,10 +62,10 @@ public class KafkaTestingContainerWithSchemaRegistry
 
         var schemaRegistry = new TestcontainersBuilder<TestcontainersContainer>()
             .WithImage("confluentinc/cp-schema-registry:latest")
-            .WithName("sc-test")
-            .WithNetworkAliases("sc-test")
+            .WithName("schema-registry")
+            .WithNetworkAliases("schema-registry")
             .WithNetwork(network)
-            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "broker:29092")
+            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "broker2:29092")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_LISTENERS", "http://0.0.0.0:8081")
             .Build();
