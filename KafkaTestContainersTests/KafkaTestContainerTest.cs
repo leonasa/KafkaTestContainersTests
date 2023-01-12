@@ -1,8 +1,13 @@
 using System.Text;
+using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
+using Confluent.SchemaRegistry;
+using Confluent.SchemaRegistry.Serdes;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
 using Xunit.Abstractions;
+
 
 namespace KafkaTestContainersTests;
 
@@ -42,9 +47,10 @@ public class KafkaTestContainerTest
 
         _testOutputHelper.WriteLine("kafka started");
 
-        var schemaRegistry = new TestcontainersBuilder<TestcontainersContainer>()
+        var schemaRegistryContainer = new TestcontainersBuilder<TestcontainersContainer>()
             .WithImage("confluentinc/cp-schema-registry:latest")
             .WithName("sc-test")
+            .WithPortBinding(8081, true)
             .WithNetworkAliases("sc-test")
             .WithNetwork(network)
             .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "broker:29092")
@@ -52,11 +58,36 @@ public class KafkaTestContainerTest
             .WithEnvironment("SCHEMA_REGISTRY_HOST_LISTENERS", "http://0.0.0.0:8081")
             .Build();
 
-        await schemaRegistry.StartAsync();
+        await schemaRegistryContainer.StartAsync();
 
         _testOutputHelper.WriteLine("schemaRegistry started");
+
+        SchemaRegistryConfig schemaRegistryConfig = new SchemaRegistryConfig
+        {
+            Url = $"{schemaRegistryContainer.Hostname}:{schemaRegistryContainer.GetMappedPublicPort(8081)}",
+        };
+        
+        using var schemaRegistry = new CachedSchemaRegistryClient(schemaRegistryConfig);
+        ProducerConfig producerConfig = new ProducerConfig
+        {
+            BootstrapServers = kafka.BootstrapServers
+        };
+        
+        using var producer = new ProducerBuilder<string, User>(producerConfig)
+            .SetValueSerializer(new JsonSerializer<User>(schemaRegistry).AsSyncOverAsync())
+            .Build();
+
+        _testOutputHelper.WriteLine("producer built");
+        
+        var deliveryResult = await producer.ProduceAsync("test", new Message<string, User>());
+        producer.Flush(TimeSpan.FromSeconds(1));
+
+        Assert.Equal(0, deliveryResult.Offset);
+        _testOutputHelper.WriteLine($"deliveryResult.Offset: {deliveryResult.Offset}");
     }
 }
+
+public record User(string name, int id);
 
 public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguration
 {
