@@ -39,7 +39,6 @@ public class KafkaTestContainerTest
             .WithNetwork(network)
             .WithName("broker")
             .WithNetworkAliases("broker")
-            .WithPortBinding(9092)
             .WithKafka(kafkaTestcontainerConfiguration)
             .Build();
 
@@ -53,6 +52,7 @@ public class KafkaTestContainerTest
             .WithPortBinding(8081, true)
             .WithNetworkAliases("sc-test")
             .WithNetwork(network)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(8081))
             .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "broker:29092")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_LISTENERS", "http://0.0.0.0:8081")

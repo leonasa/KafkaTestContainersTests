@@ -1,4 +1,8 @@
 using System.Globalization;
+using Confluent.Kafka;
+using Confluent.Kafka.SyncOverAsync;
+using Confluent.SchemaRegistry;
+using Confluent.SchemaRegistry.Serdes;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Xunit.Abstractions;
@@ -60,16 +64,53 @@ public class KafkaTestingContainerWithSchemaRegistry
 
         await kafka.StartAsync();
 
-        var schemaRegistry = new TestcontainersBuilder<TestcontainersContainer>()
+        var schemaRegistryContainer = new TestcontainersBuilder<TestcontainersContainer>()
             .WithImage("confluentinc/cp-schema-registry:latest")
             .WithName("schema-registry")
+            .WithPortBinding(8081)
             .WithNetworkAliases("schema-registry")
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(8081))
             .WithNetwork(network)
             .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "broker2:29092")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_LISTENERS", "http://0.0.0.0:8081")
             .Build();
 
-        await schemaRegistry.StartAsync();
+       
+        await schemaRegistryContainer.StartAsync();
+
+        _testOutputHelper.WriteLine("schemaRegistry started");
+
+        SchemaRegistryConfig schemaRegistryConfig = new SchemaRegistryConfig
+        {
+            Url = $"{schemaRegistryContainer.Hostname}:{schemaRegistryContainer.GetMappedPublicPort(8081)}",
+        };
+        
+        using var schemaRegistry = new CachedSchemaRegistryClient(schemaRegistryConfig);
+        ProducerConfig producerConfig = new ProducerConfig
+        {
+            BootstrapServers = $"{kafka.Hostname}:{kafka.GetMappedPublicPort(9092)}",
+        };
+        
+        using var producer = new ProducerBuilder<string, UserTest>(producerConfig)
+            .SetValueSerializer(new JsonSerializer<UserTest>(schemaRegistry).AsSyncOverAsync())
+            .Build();
+
+        _testOutputHelper.WriteLine("producer built");
+        
+        var deliveryResult = await producer.ProduceAsync("test", new Message<string, UserTest>
+        {
+            Key = "test", Value = new UserTest {Name = "test", Id = 1 }
+        });
+        producer.Flush(TimeSpan.FromSeconds(1));
+
+        Assert.Equal(0, deliveryResult.Offset);
+        _testOutputHelper.WriteLine($"deliveryResult.Offset: {deliveryResult.Offset}");
     }
+}
+
+public class UserTest
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
 }
