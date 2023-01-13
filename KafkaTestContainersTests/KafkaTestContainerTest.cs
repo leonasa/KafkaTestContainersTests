@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using Confluent.Kafka;
 using Confluent.Kafka.SyncOverAsync;
@@ -10,7 +13,15 @@ using Xunit.Abstractions;
 
 
 namespace KafkaTestContainersTests;
-
+//
+// public class tes<TDockerContainer> : TestcontainersBuilder<TDockerContainer>
+//     where TDockerContainer : ITestcontainersContainer
+// {
+//     public ITestcontainersBuilder<TDockerContainer> WithPortBinding(int port, bool assignRandomHostPort = false, Action<>)
+//     {
+//         return this.WithPortBinding(port.ToString(CultureInfo.InvariantCulture), assignRandomHostPort);
+//     }
+// }
 public class KafkaTestContainerTest
 {
     private readonly ITestOutputHelper _testOutputHelper;
@@ -18,6 +29,15 @@ public class KafkaTestContainerTest
     public KafkaTestContainerTest(ITestOutputHelper testOutputHelper)
     {
         _testOutputHelper = testOutputHelper;
+    }
+    
+    static int FreeTcpPort()
+    {
+        TcpListener l = new TcpListener(IPAddress.Loopback, 0);
+        l.Start();
+        int port = ((IPEndPoint)l.LocalEndpoint).Port;
+        l.Stop();
+        return port;
     }
 
     [Fact]
@@ -33,14 +53,19 @@ public class KafkaTestContainerTest
         await network.CreateAsync();
         _testOutputHelper.WriteLine("Network started");
 
-
-        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew();
+        var kafkaPort = FreeTcpPort();
+        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew(kafkaPort);
+        
         var kafka = new TestcontainersBuilder<KafkaTestcontainer>()
             .WithNetwork(network)
+            .WithPortBinding(kafkaPort, 9092)
             .WithName("broker")
             .WithNetworkAliases("broker")
             .WithKafka(kafkaTestcontainerConfiguration)
             .Build();
+        
+
+        _testOutputHelper.WriteLine($"kafka starting on external port {kafkaPort}");
 
         await kafka.StartAsync();
 
@@ -97,10 +122,11 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
 
     private const string StartupScriptPath = "/testcontainers_start.sh";
 
-    public KafkaTestcontainerConfigurationNew()
+    
+    public KafkaTestcontainerConfigurationNew(int kafkaPort)
     {
         Environments["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] = "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT";
-        Environments["KAFKA_ADVERTISED_LISTENERS"] = "PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092";
+        Environments["KAFKA_ADVERTISED_LISTENERS"] = $"PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{kafkaPort}";
         Environments["KAFKA_INTER_BROKER_LISTENER_NAME"] = "PLAINTEXT";
         Environments.Remove("KAFKA_LISTENERS");
     }
@@ -120,12 +146,11 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
             startupScript.Append(lf);
             startupScript.Append("zookeeper-server-start zookeeper.properties &");
             startupScript.Append(lf);
-            // startupScript.Append($"export KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://{container.Hostname}:{container.GetMappedPublicPort(this.DefaultPort)},BROKER://localhost:{BrokerPort}'");
-            // startupScript.Append(lf);
             startupScript.Append(". /etc/confluent/docker/bash-config");
             startupScript.Append(lf);
             startupScript.Append("/etc/confluent/docker/run");
             return container.CopyFileAsync(StartupScriptPath, Encoding.Default.GetBytes(startupScript.ToString()),
                 0x1ff, ct: ct);
+           
         };
 }
