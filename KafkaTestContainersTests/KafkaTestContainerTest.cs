@@ -137,7 +137,8 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
         Environments["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] = "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT";
         // Environments["KAFKA_ADVERTISED_LISTENERS"] = $"PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{kafkaPort}";
         Environments["KAFKA_INTER_BROKER_LISTENER_NAME"] = "PLAINTEXT";
-        Environments.Remove("KAFKA_LISTENERS");
+        Environments["KAFKA_LISTENERS"] = $"PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:{9092}";
+        // Environments.Remove("KAFKA_LISTENERS");
     }
     
     public override IWaitForContainerOS WaitStrategy => Wait.ForUnixContainer()
@@ -162,7 +163,7 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
             startupScript.Append(lf);
             startupScript.Append("zookeeper-server-start zookeeper.properties &");
             startupScript.Append(lf);
-            startupScript.Append($"export KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092'");
+            startupScript.Append($"export KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{_mappedPublicPort}'");
             startupScript.Append(lf);
             startupScript.Append(". /etc/confluent/docker/bash-config");
             startupScript.Append(lf);
