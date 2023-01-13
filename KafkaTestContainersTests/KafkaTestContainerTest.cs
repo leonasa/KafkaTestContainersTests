@@ -137,6 +137,17 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
         Environments["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] = "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT";
         // Environments["KAFKA_ADVERTISED_LISTENERS"] = $"PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{kafkaPort}";
         Environments["KAFKA_INTER_BROKER_LISTENER_NAME"] = "PLAINTEXT";
+        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
+        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
+        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
+        // THIS configuration allowed to producer from outside the container.
+        // ["KAFKA_LISTENERS"] = $"PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:{9092}";
+        // what else to check:
+        // KAFKA_ADVERTISED_LISTENERS --- allowed to connect from inside docker
+        // 
+        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
+        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
+        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
         Environments["KAFKA_LISTENERS"] = $"PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:{9092}";
         // Environments.Remove("KAFKA_LISTENERS");
     }
