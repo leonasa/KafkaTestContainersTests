@@ -53,9 +53,7 @@ public class KafkaTestContainerTest
         await network.CreateAsync();
         _testOutputHelper.WriteLine("Network started");
 
-        var kafkaPort = 9092;
-        // var kafkaPort = FreeTcpPort();
-        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew(kafkaPort);
+        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew();
         
         var kafka = new TestcontainersBuilder<KafkaTestcontainer>()
             .WithNetwork(network)
@@ -130,10 +128,9 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
     public override string[] Command { get; }
         = { "/bin/sh", "-c", $"echo 'running script tata'; while [ ! -f {StartupScriptPath} ]; do sleep 0.1; echo 'waiting script file'; done; . {StartupScriptPath}; echo 'end script tata';" };
     
-    public KafkaTestcontainerConfigurationNew(int kafkaPort)
+    public KafkaTestcontainerConfigurationNew()
         : base("confluentinc/cp-kafka:latest")
     {
-        _kafkaPort = kafkaPort;
         Environments["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] = "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT";
         // Environments["KAFKA_ADVERTISED_LISTENERS"] = $"PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{kafkaPort}";
         Environments["KAFKA_INTER_BROKER_LISTENER_NAME"] = "PLAINTEXT";
@@ -148,7 +145,7 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
         //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
         //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
         //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
-        Environments["KAFKA_LISTENERS"] = $"PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:{9092}";
+        Environments["KAFKA_LISTENERS"] = $"PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092";
         // Environments.Remove("KAFKA_LISTENERS");
     }
     
