@@ -53,13 +53,13 @@ public class KafkaTestContainerTest
         await network.CreateAsync();
         _testOutputHelper.WriteLine("Network started");
 
-        var networkAliases = Guid.NewGuid().ToString();
-        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew(networkAliases);
+        var kafkaContainerNetworkAliases = Guid.NewGuid().ToString();
+        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew(kafkaContainerNetworkAliases);
         
         var kafka = new TestcontainersBuilder<KafkaTestcontainer>()
             .WithNetwork(network)
             .WithPortBinding(9092)
-            .WithNetworkAliases(networkAliases)
+            .WithNetworkAliases(kafkaContainerNetworkAliases)
             .WithKafka(kafkaTestcontainerConfiguration)
             .Build();
         
@@ -69,12 +69,10 @@ public class KafkaTestContainerTest
 
         var schemaRegistryContainer = new TestcontainersBuilder<TestcontainersContainer>()
             .WithImage("confluentinc/cp-schema-registry:latest")
-            .WithName("sc-test")
             .WithPortBinding(8081, true)
-            .WithNetworkAliases("sc-test")
             .WithNetwork(network)
             .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(8081))
-            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", $"{networkAliases}:29092")
+            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", $"{kafkaContainerNetworkAliases}:29092")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_LISTENERS", "http://0.0.0.0:8081")
             .Build();
