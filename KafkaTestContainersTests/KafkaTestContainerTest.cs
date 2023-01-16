@@ -53,20 +53,16 @@ public class KafkaTestContainerTest
         await network.CreateAsync();
         _testOutputHelper.WriteLine("Network started");
 
-        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew();
+        var networkAliases = Guid.NewGuid().ToString();
+        var kafkaTestcontainerConfiguration = new KafkaTestcontainerConfigurationNew(networkAliases);
         
         var kafka = new TestcontainersBuilder<KafkaTestcontainer>()
             .WithNetwork(network)
             .WithPortBinding(9092)
-            // .WithPortBinding(9092, true)
-            .WithName("broker")
-            .WithNetworkAliases("broker")
+            .WithNetworkAliases(networkAliases)
             .WithKafka(kafkaTestcontainerConfiguration)
             .Build();
         
-
-        _testOutputHelper.WriteLine($"kafka starting on external port {kafkaPort}");
-
         await kafka.StartAsync();
 
         _testOutputHelper.WriteLine("kafka started");
@@ -78,7 +74,7 @@ public class KafkaTestContainerTest
             .WithNetworkAliases("sc-test")
             .WithNetwork(network)
             .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(8081))
-            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "broker:29092")
+            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", $"{networkAliases}:29092")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_LISTENERS", "http://0.0.0.0:8081")
             .Build();
@@ -117,6 +113,7 @@ public record User(string name, int id);
 
 public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguration
 {
+    private readonly string _networkAliases;
     private readonly int _kafkaPort;
     private static ushort _mappedPublicPort;
     private const int KafkaPort = 9092;
@@ -125,12 +122,13 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
 
     private const string StartupScriptPath = "/testcontainers_start.sh";
 
-    public override string[] Command { get; }
-        = { "/bin/sh", "-c", $"echo 'running script tata'; while [ ! -f {StartupScriptPath} ]; do sleep 0.1; echo 'waiting script file'; done; . {StartupScriptPath}; echo 'end script tata';" };
-    
-    public KafkaTestcontainerConfigurationNew()
+    // public override string[] Command { get; }
+    //     = { "/bin/sh", "-c", $"echo 'running script tata'; while [ ! -f {StartupScriptPath} ]; do sleep 0.1; echo 'waiting script file'; done; . {StartupScriptPath}; echo 'end script tata';" };
+    //
+    public KafkaTestcontainerConfigurationNew(string networkAliases)
         : base("confluentinc/cp-kafka:latest")
     {
+        _networkAliases = networkAliases;
         Environments["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] = "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT";
         // Environments["KAFKA_ADVERTISED_LISTENERS"] = $"PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{kafkaPort}";
         Environments["KAFKA_INTER_BROKER_LISTENER_NAME"] = "PLAINTEXT";
@@ -171,7 +169,7 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
             startupScript.Append(lf);
             startupScript.Append("zookeeper-server-start zookeeper.properties &");
             startupScript.Append(lf);
-            startupScript.Append($"export KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{_mappedPublicPort}'");
+            startupScript.Append($"export KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://{_networkAliases}:29092,PLAINTEXT_HOST://localhost:{_mappedPublicPort}'");
             startupScript.Append(lf);
             startupScript.Append(". /etc/confluent/docker/bash-config");
             startupScript.Append(lf);
