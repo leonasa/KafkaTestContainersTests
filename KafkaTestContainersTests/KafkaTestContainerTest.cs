@@ -72,7 +72,7 @@ public class KafkaTestContainerTest
             .WithPortBinding(8081, true)
             .WithNetwork(network)
             .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(8081))
-            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", $"{kafkaContainerNetworkAliases}:29092")
+            .WithEnvironment("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", kafkaTestcontainerConfiguration.KafkaBrokerInternalUrl)
             .WithEnvironment("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
             .WithEnvironment("SCHEMA_REGISTRY_HOST_LISTENERS", "http://0.0.0.0:8081")
             .Build();
@@ -90,7 +90,6 @@ public class KafkaTestContainerTest
         ProducerConfig producerConfig = new ProducerConfig
         {
             BootstrapServers = kafka.BootstrapServers
-            // BootstrapServers = "localhost:9092"
         };
         
         using var producer = new ProducerBuilder<string, User>(producerConfig)
@@ -112,37 +111,18 @@ public record User(string name, int id);
 public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguration
 {
     private readonly string _networkAliases;
-    private readonly int _kafkaPort;
     private static ushort _mappedPublicPort;
-    private const int KafkaPort = 9092;
-    private const int BrokerPort = 29092;
     private const int ZookeeperPort = 2181;
-
+    private const int BrokerPort = 9093;
     private const string StartupScriptPath = "/testcontainers_start.sh";
 
-    // public override string[] Command { get; }
-    //     = { "/bin/sh", "-c", $"echo 'running script tata'; while [ ! -f {StartupScriptPath} ]; do sleep 0.1; echo 'waiting script file'; done; . {StartupScriptPath}; echo 'end script tata';" };
-    //
+    public string KafkaBrokerInternalUrl { get; }
+    
     public KafkaTestcontainerConfigurationNew(string networkAliases)
         : base("confluentinc/cp-kafka:latest")
     {
         _networkAliases = networkAliases;
-        Environments["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"] = "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT";
-        // Environments["KAFKA_ADVERTISED_LISTENERS"] = $"PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:{kafkaPort}";
-        Environments["KAFKA_INTER_BROKER_LISTENER_NAME"] = "PLAINTEXT";
-        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
-        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
-        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
-        // THIS configuration allowed to producer from outside the container.
-        // ["KAFKA_LISTENERS"] = $"PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:{9092}";
-        // what else to check:
-        // KAFKA_ADVERTISED_LISTENERS --- allowed to connect from inside docker
-        // 
-        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
-        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
-        //# "`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-'"`-._,-
-        Environments["KAFKA_LISTENERS"] = $"PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092";
-        // Environments.Remove("KAFKA_LISTENERS");
+        KafkaBrokerInternalUrl = $"{_networkAliases}:{BrokerPort}";
     }
     
     public override IWaitForContainerOS WaitStrategy => Wait.ForUnixContainer()
@@ -157,8 +137,6 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
             var startupScript = new StringBuilder();
             startupScript.Append("#!/bin/sh");
             startupScript.Append(lf);
-            startupScript.Append("echo 'inside script'");
-            startupScript.Append(lf);
             startupScript.Append($"echo 'clientPort={ZookeeperPort}' > zookeeper.properties");
             startupScript.Append(lf);
             startupScript.Append("echo 'dataDir=/var/lib/zookeeper/data' >> zookeeper.properties");
@@ -166,8 +144,8 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
             startupScript.Append("echo 'dataLogDir=/var/lib/zookeeper/log' >> zookeeper.properties");
             startupScript.Append(lf);
             startupScript.Append("zookeeper-server-start zookeeper.properties &");
-            startupScript.Append(lf);
-            startupScript.Append($"export KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://{_networkAliases}:29092,PLAINTEXT_HOST://localhost:{_mappedPublicPort}'");
+            startupScript.Append(lf);                                 
+            startupScript.Append($"export KAFKA_ADVERTISED_LISTENERS='PLAINTEXT://localhost:{_mappedPublicPort},BROKER://{KafkaBrokerInternalUrl}'");
             startupScript.Append(lf);
             startupScript.Append(". /etc/confluent/docker/bash-config");
             startupScript.Append(lf);
