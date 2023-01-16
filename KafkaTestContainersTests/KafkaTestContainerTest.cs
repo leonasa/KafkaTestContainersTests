@@ -125,9 +125,6 @@ public class KafkaTestcontainerConfigurationNew : KafkaTestcontainerConfiguratio
         KafkaBrokerInternalUrl = $"{_networkAliases}:{BrokerPort}";
     }
     
-    public override IWaitForContainerOS WaitStrategy => Wait.ForUnixContainer()
-        .UntilPortIsAvailable(_mappedPublicPort);
-
     public override Func<IRunningDockerContainer, CancellationToken, Task> StartupCallback
         => (container, ct) =>
         {
